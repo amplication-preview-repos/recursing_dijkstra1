@@ -13,6 +13,12 @@ import * as graphql from "@nestjs/graphql";
 import { GraphQLError } from "graphql";
 import { isRecordNotFoundError } from "../../prisma.util";
 import { MetaQueryPayload } from "../../util/MetaQueryPayload";
+import * as nestAccessControl from "nest-access-control";
+import * as gqlACGuard from "../../auth/gqlAC.guard";
+import { GqlDefaultAuthGuard } from "../../auth/gqlDefaultAuth.guard";
+import * as common from "@nestjs/common";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
 import { Report } from "./Report";
 import { ReportCountArgs } from "./ReportCountArgs";
 import { ReportFindManyArgs } from "./ReportFindManyArgs";
@@ -23,10 +29,20 @@ import { DeleteReportArgs } from "./DeleteReportArgs";
 import { User } from "../../user/base/User";
 import { Video } from "../../video/base/Video";
 import { ReportService } from "../report.service";
+@common.UseGuards(GqlDefaultAuthGuard, gqlACGuard.GqlACGuard)
 @graphql.Resolver(() => Report)
 export class ReportResolverBase {
-  constructor(protected readonly service: ReportService) {}
+  constructor(
+    protected readonly service: ReportService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
 
+  @graphql.Query(() => MetaQueryPayload)
+  @nestAccessControl.UseRoles({
+    resource: "Report",
+    action: "read",
+    possession: "any",
+  })
   async _reportsMeta(
     @graphql.Args() args: ReportCountArgs
   ): Promise<MetaQueryPayload> {
@@ -36,12 +52,24 @@ export class ReportResolverBase {
     };
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => [Report])
+  @nestAccessControl.UseRoles({
+    resource: "Report",
+    action: "read",
+    possession: "any",
+  })
   async reports(@graphql.Args() args: ReportFindManyArgs): Promise<Report[]> {
     return this.service.reports(args);
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => Report, { nullable: true })
+  @nestAccessControl.UseRoles({
+    resource: "Report",
+    action: "read",
+    possession: "own",
+  })
   async report(
     @graphql.Args() args: ReportFindUniqueArgs
   ): Promise<Report | null> {
@@ -52,7 +80,13 @@ export class ReportResolverBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => Report)
+  @nestAccessControl.UseRoles({
+    resource: "Report",
+    action: "create",
+    possession: "any",
+  })
   async createReport(@graphql.Args() args: CreateReportArgs): Promise<Report> {
     return await this.service.createReport({
       ...args,
@@ -74,7 +108,13 @@ export class ReportResolverBase {
     });
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => Report)
+  @nestAccessControl.UseRoles({
+    resource: "Report",
+    action: "update",
+    possession: "any",
+  })
   async updateReport(
     @graphql.Args() args: UpdateReportArgs
   ): Promise<Report | null> {
@@ -108,6 +148,11 @@ export class ReportResolverBase {
   }
 
   @graphql.Mutation(() => Report)
+  @nestAccessControl.UseRoles({
+    resource: "Report",
+    action: "delete",
+    possession: "any",
+  })
   async deleteReport(
     @graphql.Args() args: DeleteReportArgs
   ): Promise<Report | null> {
@@ -123,9 +168,15 @@ export class ReportResolverBase {
     }
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.ResolveField(() => User, {
     nullable: true,
     name: "user",
+  })
+  @nestAccessControl.UseRoles({
+    resource: "User",
+    action: "read",
+    possession: "any",
   })
   async getUser(@graphql.Parent() parent: Report): Promise<User | null> {
     const result = await this.service.getUser(parent.id);
@@ -136,9 +187,15 @@ export class ReportResolverBase {
     return result;
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.ResolveField(() => Video, {
     nullable: true,
     name: "video",
+  })
+  @nestAccessControl.UseRoles({
+    resource: "Video",
+    action: "read",
+    possession: "any",
   })
   async getVideo(@graphql.Parent() parent: Report): Promise<Video | null> {
     const result = await this.service.getVideo(parent.id);

@@ -16,7 +16,11 @@ import * as errors from "../../errors";
 import { Request } from "express";
 import { plainToClass } from "class-transformer";
 import { ApiNestedQuery } from "../../decorators/api-nested-query.decorator";
+import * as nestAccessControl from "nest-access-control";
+import * as defaultAuthGuard from "../../auth/defaultAuth.guard";
 import { VideoService } from "../video.service";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
 import { VideoCreateInput } from "./VideoCreateInput";
 import { Video } from "./Video";
 import { VideoFindManyArgs } from "./VideoFindManyArgs";
@@ -32,10 +36,24 @@ import { ReportFindManyArgs } from "../../report/base/ReportFindManyArgs";
 import { Report } from "../../report/base/Report";
 import { ReportWhereUniqueInput } from "../../report/base/ReportWhereUniqueInput";
 
+@swagger.ApiBearerAuth()
+@common.UseGuards(defaultAuthGuard.DefaultAuthGuard, nestAccessControl.ACGuard)
 export class VideoControllerBase {
-  constructor(protected readonly service: VideoService) {}
+  constructor(
+    protected readonly service: VideoService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Post()
   @swagger.ApiCreatedResponse({ type: Video })
+  @nestAccessControl.UseRoles({
+    resource: "Video",
+    action: "create",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async createVideo(@common.Body() data: VideoCreateInput): Promise<Video> {
     return await this.service.createVideo({
       data: {
@@ -66,9 +84,18 @@ export class VideoControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get()
   @swagger.ApiOkResponse({ type: [Video] })
   @ApiNestedQuery(VideoFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Video",
+    action: "read",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async videos(@common.Req() request: Request): Promise<Video[]> {
     const args = plainToClass(VideoFindManyArgs, request.query);
     return this.service.videos({
@@ -92,9 +119,18 @@ export class VideoControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id")
   @swagger.ApiOkResponse({ type: Video })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Video",
+    action: "read",
+    possession: "own",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async video(
     @common.Param() params: VideoWhereUniqueInput
   ): Promise<Video | null> {
@@ -125,9 +161,18 @@ export class VideoControllerBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @common.Patch("/:id")
   @swagger.ApiOkResponse({ type: Video })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Video",
+    action: "update",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async updateVideo(
     @common.Param() params: VideoWhereUniqueInput,
     @common.Body() data: VideoUpdateInput
@@ -174,6 +219,14 @@ export class VideoControllerBase {
   @common.Delete("/:id")
   @swagger.ApiOkResponse({ type: Video })
   @swagger.ApiNotFoundResponse({ type: errors.NotFoundException })
+  @nestAccessControl.UseRoles({
+    resource: "Video",
+    action: "delete",
+    possession: "any",
+  })
+  @swagger.ApiForbiddenResponse({
+    type: errors.ForbiddenException,
+  })
   async deleteVideo(
     @common.Param() params: VideoWhereUniqueInput
   ): Promise<Video | null> {
@@ -207,8 +260,14 @@ export class VideoControllerBase {
     }
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id/comments")
   @ApiNestedQuery(CommentFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Comment",
+    action: "read",
+    possession: "any",
+  })
   async findComments(
     @common.Req() request: Request,
     @common.Param() params: VideoWhereUniqueInput
@@ -244,6 +303,11 @@ export class VideoControllerBase {
   }
 
   @common.Post("/:id/comments")
+  @nestAccessControl.UseRoles({
+    resource: "Video",
+    action: "update",
+    possession: "any",
+  })
   async connectComments(
     @common.Param() params: VideoWhereUniqueInput,
     @common.Body() body: CommentWhereUniqueInput[]
@@ -261,6 +325,11 @@ export class VideoControllerBase {
   }
 
   @common.Patch("/:id/comments")
+  @nestAccessControl.UseRoles({
+    resource: "Video",
+    action: "update",
+    possession: "any",
+  })
   async updateComments(
     @common.Param() params: VideoWhereUniqueInput,
     @common.Body() body: CommentWhereUniqueInput[]
@@ -278,6 +347,11 @@ export class VideoControllerBase {
   }
 
   @common.Delete("/:id/comments")
+  @nestAccessControl.UseRoles({
+    resource: "Video",
+    action: "update",
+    possession: "any",
+  })
   async disconnectComments(
     @common.Param() params: VideoWhereUniqueInput,
     @common.Body() body: CommentWhereUniqueInput[]
@@ -294,8 +368,14 @@ export class VideoControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id/likes")
   @ApiNestedQuery(LikeFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Like",
+    action: "read",
+    possession: "any",
+  })
   async findLikes(
     @common.Req() request: Request,
     @common.Param() params: VideoWhereUniqueInput
@@ -330,6 +410,11 @@ export class VideoControllerBase {
   }
 
   @common.Post("/:id/likes")
+  @nestAccessControl.UseRoles({
+    resource: "Video",
+    action: "update",
+    possession: "any",
+  })
   async connectLikes(
     @common.Param() params: VideoWhereUniqueInput,
     @common.Body() body: LikeWhereUniqueInput[]
@@ -347,6 +432,11 @@ export class VideoControllerBase {
   }
 
   @common.Patch("/:id/likes")
+  @nestAccessControl.UseRoles({
+    resource: "Video",
+    action: "update",
+    possession: "any",
+  })
   async updateLikes(
     @common.Param() params: VideoWhereUniqueInput,
     @common.Body() body: LikeWhereUniqueInput[]
@@ -364,6 +454,11 @@ export class VideoControllerBase {
   }
 
   @common.Delete("/:id/likes")
+  @nestAccessControl.UseRoles({
+    resource: "Video",
+    action: "update",
+    possession: "any",
+  })
   async disconnectLikes(
     @common.Param() params: VideoWhereUniqueInput,
     @common.Body() body: LikeWhereUniqueInput[]
@@ -380,8 +475,14 @@ export class VideoControllerBase {
     });
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @common.Get("/:id/reports")
   @ApiNestedQuery(ReportFindManyArgs)
+  @nestAccessControl.UseRoles({
+    resource: "Report",
+    action: "read",
+    possession: "any",
+  })
   async findReports(
     @common.Req() request: Request,
     @common.Param() params: VideoWhereUniqueInput
@@ -418,6 +519,11 @@ export class VideoControllerBase {
   }
 
   @common.Post("/:id/reports")
+  @nestAccessControl.UseRoles({
+    resource: "Video",
+    action: "update",
+    possession: "any",
+  })
   async connectReports(
     @common.Param() params: VideoWhereUniqueInput,
     @common.Body() body: ReportWhereUniqueInput[]
@@ -435,6 +541,11 @@ export class VideoControllerBase {
   }
 
   @common.Patch("/:id/reports")
+  @nestAccessControl.UseRoles({
+    resource: "Video",
+    action: "update",
+    possession: "any",
+  })
   async updateReports(
     @common.Param() params: VideoWhereUniqueInput,
     @common.Body() body: ReportWhereUniqueInput[]
@@ -452,6 +563,11 @@ export class VideoControllerBase {
   }
 
   @common.Delete("/:id/reports")
+  @nestAccessControl.UseRoles({
+    resource: "Video",
+    action: "update",
+    possession: "any",
+  })
   async disconnectReports(
     @common.Param() params: VideoWhereUniqueInput,
     @common.Body() body: ReportWhereUniqueInput[]

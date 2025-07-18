@@ -13,6 +13,12 @@ import * as graphql from "@nestjs/graphql";
 import { GraphQLError } from "graphql";
 import { isRecordNotFoundError } from "../../prisma.util";
 import { MetaQueryPayload } from "../../util/MetaQueryPayload";
+import * as nestAccessControl from "nest-access-control";
+import * as gqlACGuard from "../../auth/gqlAC.guard";
+import { GqlDefaultAuthGuard } from "../../auth/gqlDefaultAuth.guard";
+import * as common from "@nestjs/common";
+import { AclFilterResponseInterceptor } from "../../interceptors/aclFilterResponse.interceptor";
+import { AclValidateRequestInterceptor } from "../../interceptors/aclValidateRequest.interceptor";
 import { Wallet } from "./Wallet";
 import { WalletCountArgs } from "./WalletCountArgs";
 import { WalletFindManyArgs } from "./WalletFindManyArgs";
@@ -22,10 +28,20 @@ import { UpdateWalletArgs } from "./UpdateWalletArgs";
 import { DeleteWalletArgs } from "./DeleteWalletArgs";
 import { User } from "../../user/base/User";
 import { WalletService } from "../wallet.service";
+@common.UseGuards(GqlDefaultAuthGuard, gqlACGuard.GqlACGuard)
 @graphql.Resolver(() => Wallet)
 export class WalletResolverBase {
-  constructor(protected readonly service: WalletService) {}
+  constructor(
+    protected readonly service: WalletService,
+    protected readonly rolesBuilder: nestAccessControl.RolesBuilder
+  ) {}
 
+  @graphql.Query(() => MetaQueryPayload)
+  @nestAccessControl.UseRoles({
+    resource: "Wallet",
+    action: "read",
+    possession: "any",
+  })
   async _walletsMeta(
     @graphql.Args() args: WalletCountArgs
   ): Promise<MetaQueryPayload> {
@@ -35,12 +51,24 @@ export class WalletResolverBase {
     };
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => [Wallet])
+  @nestAccessControl.UseRoles({
+    resource: "Wallet",
+    action: "read",
+    possession: "any",
+  })
   async wallets(@graphql.Args() args: WalletFindManyArgs): Promise<Wallet[]> {
     return this.service.wallets(args);
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.Query(() => Wallet, { nullable: true })
+  @nestAccessControl.UseRoles({
+    resource: "Wallet",
+    action: "read",
+    possession: "own",
+  })
   async wallet(
     @graphql.Args() args: WalletFindUniqueArgs
   ): Promise<Wallet | null> {
@@ -51,7 +79,13 @@ export class WalletResolverBase {
     return result;
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => Wallet)
+  @nestAccessControl.UseRoles({
+    resource: "Wallet",
+    action: "create",
+    possession: "any",
+  })
   async createWallet(@graphql.Args() args: CreateWalletArgs): Promise<Wallet> {
     return await this.service.createWallet({
       ...args,
@@ -67,7 +101,13 @@ export class WalletResolverBase {
     });
   }
 
+  @common.UseInterceptors(AclValidateRequestInterceptor)
   @graphql.Mutation(() => Wallet)
+  @nestAccessControl.UseRoles({
+    resource: "Wallet",
+    action: "update",
+    possession: "any",
+  })
   async updateWallet(
     @graphql.Args() args: UpdateWalletArgs
   ): Promise<Wallet | null> {
@@ -95,6 +135,11 @@ export class WalletResolverBase {
   }
 
   @graphql.Mutation(() => Wallet)
+  @nestAccessControl.UseRoles({
+    resource: "Wallet",
+    action: "delete",
+    possession: "any",
+  })
   async deleteWallet(
     @graphql.Args() args: DeleteWalletArgs
   ): Promise<Wallet | null> {
@@ -110,9 +155,15 @@ export class WalletResolverBase {
     }
   }
 
+  @common.UseInterceptors(AclFilterResponseInterceptor)
   @graphql.ResolveField(() => User, {
     nullable: true,
     name: "user",
+  })
+  @nestAccessControl.UseRoles({
+    resource: "User",
+    action: "read",
+    possession: "any",
   })
   async getUser(@graphql.Parent() parent: Wallet): Promise<User | null> {
     const result = await this.service.getUser(parent.id);
