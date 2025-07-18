@@ -1,0 +1,140 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DB_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Wallet {
+  balance       Float?
+  createdAt     DateTime @default(now())
+  escrowBalance Float?
+  id            String   @id @default(cuid())
+  updatedAt     DateTime @updatedAt
+  user          User?    @relation(fields: [userId], references: [id])
+  userId        String?
+}
+
+model Product {
+  createdAt   DateTime @default(now())
+  description String?
+  id          String   @id @default(cuid())
+  imageUrl    String?
+  name        String?
+  orders      Order[]
+  price       Float?
+  retailer    String?
+  updatedAt   DateTime @updatedAt
+  videos      Video[]
+}
+
+model Video {
+  caption      String?
+  comments     Comment[]
+  createdAt    DateTime  @default(now())
+  id           String    @id @default(cuid())
+  likes        Like[]
+  product      Product?  @relation(fields: [productId], references: [id])
+  productId    String?
+  reports      Report[]
+  retailer     String?
+  thumbnailUrl String?
+  updatedAt    DateTime  @updatedAt
+  videoUrl     String?
+}
+
+model Comment {
+  content   String?
+  createdAt DateTime @default(now())
+  id        String   @id @default(cuid())
+  updatedAt DateTime @updatedAt
+  user      User?    @relation(fields: [userId], references: [id])
+  userId    String?
+  video     Video?   @relation(fields: [videoId], references: [id])
+  videoId   String?
+}
+
+model Order {
+  amount         Float?
+  client         String?
+  createdAt      DateTime         @default(now())
+  escrowReleased Boolean?
+  id             String           @id @default(cuid())
+  product        Product?         @relation(fields: [productId], references: [id])
+  productId      String?
+  status         EnumOrderStatus?
+  updatedAt      DateTime         @updatedAt
+}
+
+model Like {
+  createdAt DateTime @default(now())
+  id        String   @id @default(cuid())
+  updatedAt DateTime @updatedAt
+  user      User?    @relation(fields: [userId], references: [id])
+  userId    String?
+  video     Video?   @relation(fields: [videoId], references: [id])
+  videoId   String?
+}
+
+model Report {
+  createdAt  DateTime              @default(now())
+  id         String                @id @default(cuid())
+  reason     String?
+  reportType EnumReportReportType?
+  updatedAt  DateTime              @updatedAt
+  user       User?                 @relation(fields: [userId], references: [id])
+  userId     String?
+  video      Video?                @relation(fields: [videoId], references: [id])
+  videoId    String?
+}
+
+model Notification {
+  body      String?
+  createdAt DateTime                   @default(now())
+  id        String                     @id @default(cuid())
+  isRead    Boolean?
+  title     String?
+  typeField EnumNotificationTypeField?
+  updatedAt DateTime                   @updatedAt
+  user      User?                      @relation(fields: [userId], references: [id])
+  userId    String?
+}
+
+model User {
+  clientProfile   String?
+  comments        Comment[]
+  createdAt       DateTime       @default(now())
+  email           String?        @unique
+  firstName       String?
+  id              String         @id @default(cuid())
+  lastName        String?
+  likes           Like[]
+  notifications   Notification[]
+  password        String
+  phone           String?
+  reports         Report[]
+  retailerProfile String?
+  role            EnumUserRole?
+  roles           Json
+  updatedAt       DateTime       @updatedAt
+  username        String         @unique
+  wallets         Wallet[]
+}
+
+enum EnumOrderStatus {
+  Option1
+}
+
+enum EnumReportReportType {
+  Option1
+}
+
+enum EnumNotificationTypeField {
+  Option1
+}
+
+enum EnumUserRole {
+  Option1
+}
